@@ -1,4 +1,4 @@
-# ISO8583
+# ISO-8583
 Iso8583 Message Parser (Serialize/Deserialize)
 
 
