@@ -1,6 +1,19 @@
 [package]
 name = "iso8583"
 version = "0.1.0"
-authors = ["ytr289 <rohit.joshi@capitalone.com>"]
+authors = ["Rohit Joshi <rohit.joshi@rohit.c.joshi.com>"]
+
+
+license = "MIT/Apache-2.0"
+description = "Library to Parse ISO-8583 messages"
+homepage = "https://github.com/rohitjoshi/iso8583"
+repository = "https://github.com/rohitjoshi/iso8583"
+documentation = "https://github.com/rohitjoshi/iso8583/blob/master/README.md"
+keywords = ["iso8583", "encoding", "decoding", "protocol"]
+categories = ["iso8583"]
+readme = "README.md"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 
 [dependencies]
+bit-array="0.4.4"
+typenum= "1.9.0"
