@@ -11,11 +11,11 @@ use std::str;
 use bit_array::BitArray;
 use typenum::U128;
 use std::borrow::Cow;
-use iso_specs::FieldCharType;
-use iso_specs::FieldPayload;
-use iso_specs::IsoField;
-use iso_specs::FieldSizeType;
-use iso_specs::IsoSpecs;
+use iso_field::FieldCharType;
+use iso_field::FieldPayload;
+use iso_field::IsoField;
+use iso_field::FieldSizeType;
+use yaml_specs::IsoSpecs;
 
 /// `IsoMsg`
 pub struct IsoMsg<'a, 'b> {
@@ -48,7 +48,11 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
 
 
     pub fn set_field(&mut self, index: usize, buffer: &[u8]) -> Result<(), &str> {
-        // println!("set_field: index:{}, buffer:{}", index, str::from_utf8(&buffer).unwrap());
+        trace!(
+            "set_field: index:{}, buffer:{}",
+            index,
+            str::from_utf8(&buffer).unwrap()
+        );
         assert!(index < self.fields.len());
         assert!(index < self.iso_spec.get_handle().len());
         assert!(buffer.len() <= self.iso_spec.get_handle()[index].length);
@@ -56,16 +60,23 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
         let len_prefix = self.get_field_length_prefix(index);
         let total_lenth = buffer.len() + len_prefix;
         let mut v = Vec::with_capacity(total_lenth);
-        //  println!("buffer.len():{}, ISO_HANDLE[index].length:{}", buffer.len(), ISO_HANDLE[index].length);
+        trace!(
+            "buffer.len():{}, iso_spec.get_handle()[index].length:{}",
+            buffer.len(),
+            self.iso_spec.get_handle()[index].length
+        );
         if len_prefix > 0 {
 
             v.extend_from_slice(format!("{:0w$}", buffer.len(), w = len_prefix).as_bytes());
         }
         v.extend_from_slice(buffer);
 
-        // println!("index:{}, set_extend_from_slice : v {}", index, str::from_utf8(&v).unwrap());
-        //v.append(buffer[0..buffer.len()]); //todo should be able to avoid copy
-        //  println!("set_field: v.len:{}", v.len());
+        trace!(
+            "index:{}, set_extend_from_slice : v {}",
+            index,
+            str::from_utf8(&v).unwrap()
+        );
+        trace!("set_field: v.len:{}", v.len());
         self.fields[index].new_payload = Some(v);
         self.fields[index].exist = true;
         Ok(())
@@ -101,7 +112,7 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
         }
 
         if field.new_payload.is_some() {
-            //    println!("new_payload exist");
+            trace!("new_payload exist");
             if let Some(ref m) = field.new_payload {
                 if buffer.len() >= m.len() {
                     let len_prefix = self.get_field_length_prefix(index);
@@ -142,7 +153,9 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
         bitmap_bytes: &[u8],
     ) -> (Vec<BitArray<u64, U128>>, usize) {
 
-        let num_iteration: usize = (iso_spec.get_handle().len() - index + 63) / 128;
+        let bitmap_length = iso_spec.get_handle()[index].length;
+        let bitmap_size = bitmap_length * 8;
+        let num_iteration: usize = (iso_spec.get_handle().len() - index + 63) / bitmap_size;
         let i = 0;
 
         let mut bit_map_index = index;
@@ -154,8 +167,9 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
 
         let mut bit_arrays_index = 0;
 
-        let bitmap = unsafe { str::from_utf8_unchecked(bitmap_bytes) };
-        //let bitmap = str::from_utf8(bitmap_bytes).unwrap();
+        //let bitmap = unsafe { str::from_utf8_unchecked(bitmap_bytes) };
+        let bitmap = str::from_utf8(bitmap_bytes).unwrap();
+        trace!("index:{}, bitmap:{}", index, bitmap);
         let mut field_index = 0; //current field index
         while i < num_iteration {
 
@@ -168,27 +182,32 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
                 ms_num_bit -= 1;
             }
             let ms = u32::from_str_radix(&bitmap[bit_map_index..bit_map_index + 8], 16).unwrap();
-            //println!("ms: {}", ms);
-            bit_map_index += 8;
 
             //  for x in (num_bits..0).rev() {
             for x in (0..ms_num_bit).rev() {
                 let bit_set = IsoMsg::is_bit_set(ms, x as u8);
+                trace!("ms: bit {} field_index:{} is {}", x, field_index, bit_set);
                 bit_arrays[bit_arrays_index].set(field_index, bit_set);
                 field_index += 1;
             }
-
-            let ls = u32::from_str_radix(&bitmap[bit_map_index..bit_map_index + 8], 16).unwrap();
+            trace!("ms: {}", ms);
             bit_map_index += 8;
 
+            let ls = u32::from_str_radix(&bitmap[bit_map_index..bit_map_index + 8], 16).unwrap();
             for x in (0..num_bits).rev() {
                 let bit_set = IsoMsg::is_bit_set(ls, x as u8);
+                trace!("ms: bit {} field_index:{} is {}", x, field_index, bit_set);
                 bit_arrays[bit_arrays_index].set(field_index, bit_set);
                 field_index += 1;
             }
-            bit_arrays_index = field_index / 128;
+            bit_map_index += 8;
+            trace!("ls: {}", ls);
+
+
+            bit_arrays_index = field_index / bitmap_size;
             if i == 0 && !IsoMsg::is_bit_set(ms, 31u8) {
                 // if 2ndory bitmap doesn't exist, comeout
+                trace!("2ndory bitmap doesn't exis");
                 break;
             }
         }
@@ -244,6 +263,11 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
                 if res.is_ok() {
                     if bitmap_found {
                         bit_arrays[bit_array_index].set(index - bitmap_field_index, true);
+                        trace!(
+                            "index:{}, buffer[buffer_index..]:{}",
+                            index,
+                            str::from_utf8(&buffer[buffer_index..]).unwrap()
+                        );
                     }
                     let (field_total_len, _) = res.unwrap();
                     buffer_index += field_total_len;
@@ -311,17 +335,22 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
                 field.len = len;
                 bit_arrays = bitarrays;
                 payload_index += field.len; //(iso_field.length * len/16);
-            // println!("iso_field.length:{}, field.index:{}, payload_index:{}, bitmap: {}",
-            // iso_field.length, field.index, payload_index, str::from_utf8(&input_buffer[field.index..len+field.index]).unwrap());
+                trace!(
+                    "iso_field.length:{}, field.index:{}, payload_index:{}, bitmap: {}",
+                    iso_field.length,
+                    field.index,
+                    payload_index,
+                    str::from_utf8(&input_buffer[field.index..len + field.index]).unwrap()
+                );
 
-            // println!("bit_arrays:{}", bit_arrays.len());
+                trace!("bit_arrays:{}", bit_arrays.len());
 
             } else {
                 let mut field_exist = true; //until bitmap found, assume field exist
                 if found_bitmap {
                     if bit_arrays[0].get(i - bitmap_field_index).unwrap() {
                         field_exist = true;
-                    // println!("Field {} exists.", i);
+                        trace!("Field {} exists.", i);
                     } else {
                         field_exist = false;
                     }
@@ -332,8 +361,12 @@ impl<'a, 'b> IsoMsg<'a, 'b> {
                     field.len = IsoMsg::get_field_length(iso_field, &input_buffer[payload_index..]);
                     field.exist = true;
                     payload_index += field.len;
-                    // println!("iso_field.length:{}, field.index:{}, payload_index:{}, ",
-                    //     iso_field.length, field.index, payload_index);
+                    trace!(
+                        "iso_field.length:{}, field.index:{}, payload_index:{}, ",
+                        iso_field.length,
+                        field.index,
+                        payload_index
+                    );
                 }
             }
 
@@ -351,11 +384,12 @@ mod tests {
     use std::{str, u32};
     use typenum::U128;
 
-    use iso_specs::FieldCharType;
-    use iso_specs::FieldPayload;
-    use iso_specs::FieldSizeType;
-    use iso_specs::IsoField;
-    use iso_specs::IsoSpecs;
+    use iso_field::FieldCharType;
+    use iso_field::FieldPayload;
+    use iso_field::FieldSizeType;
+    use iso_field::IsoField;
+    use yaml_specs::IsoSpecs;
+    use yaml_specs::YamlSpec;
 
     /// Auth spec defines the format of Iso8583 message
     pub struct AuthSpecs {
@@ -379,136 +413,136 @@ mod tests {
 
     impl Util {
         pub fn define_auth_specs() -> Vec<IsoField> {
-            let h =   vec![
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Message Type Indicator
-IsoField::new(FieldCharType::Iso8583_bmps, 16,FieldSizeType::BitMap), // Bitmap
-IsoField::new(FieldCharType::Iso8583_ns , 19,FieldSizeType::LlVar), // Primary Account Number
-IsoField::new(FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Processing Code
-IsoField::new(FieldCharType::Iso8583_ns , 12,FieldSizeType::Fixed), // Amount, Txn
-IsoField::new(FieldCharType::Iso8583_ns , 12,FieldSizeType::Fixed), // Amount, Reconciliation
-IsoField::new(FieldCharType::Iso8583_ns , 12,FieldSizeType::Fixed), // Amount, Cardholder Billing
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Date and Time, Transmission
-IsoField::new(FieldCharType::Iso8583_ns ,  8,FieldSizeType::Fixed), // Amount, Cardholder Billing Fee
-IsoField::new(FieldCharType::Iso8583_ns ,  8,FieldSizeType::Fixed), // Conversion Rate, Reconciliation
-IsoField::new(FieldCharType::Iso8583_ns ,  8,FieldSizeType::Fixed), // Conversion Rate, Cardholder Billing
-IsoField::new(FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Systems Trace Audit Number
-IsoField::new(FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Date and Time, Local Txn
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Effective
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Expiration
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Settlement
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Conversion
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Capture
-IsoField::new(FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Merchant Type
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Acquiring Inst
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Primary Account Number
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Forwarding Inst
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Point of Service Data Code
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Card Sequence Number
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Function Code
-IsoField::new(FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Message Reason Code
-IsoField::new(FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Card Acceptor Business Code
-IsoField::new(FieldCharType::Iso8583_ns ,  1,FieldSizeType::Fixed), // Approval Code Length
-IsoField::new(FieldCharType::Iso8583_ns ,  9,FieldSizeType::Fixed), // Date, Reconciliation
-IsoField::new(FieldCharType::Iso8583_ns ,  9,FieldSizeType::Fixed), // Reconciliation Indicator
-IsoField::new(FieldCharType::Iso8583_ns , 24,FieldSizeType::Fixed), // Amounts, Original
-IsoField::new(FieldCharType::Iso8583_ans, 99,FieldSizeType::LlVar), // Acquirer Reference Data
-IsoField::new(FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Acquirer Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Forwarding Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ns , 28,FieldSizeType::LlVar), // Primary Account Number, Extended
-IsoField::new(FieldCharType::ISO8583_z  , 37,FieldSizeType::LlVar), // Track 2 Data
-IsoField::new(FieldCharType::ISO8583_z  ,104,FieldSizeType::LllVar), // Track 3 Data
-IsoField::new(FieldCharType::Iso8583_anp, 12,FieldSizeType::Fixed), // Retrieval Reference Number
-IsoField::new(FieldCharType::Iso8583_anp,  6,FieldSizeType::Fixed), // Approval Code
-IsoField::new(FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Action Code
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Service Code
-IsoField::new(FieldCharType::Iso8583_ans,  8,FieldSizeType::Fixed), // Card Acceptor Terminal Id
-IsoField::new(FieldCharType::Iso8583_ans, 15,FieldSizeType::Fixed), // Card Acceptor Id Code
-IsoField::new(FieldCharType::Iso8583_ans, 40,FieldSizeType::Fixed), // Card Acceptor Name/Location
-IsoField::new(FieldCharType::Iso8583_ans, 99,FieldSizeType::LlVar), // Additional Response Data
-IsoField::new(FieldCharType::Iso8583_ans, 76,FieldSizeType::LlVar), // Track 1 Data
-IsoField::new(FieldCharType::Iso8583_ans,204,FieldSizeType::LllVar), // Amounts, Fees
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Additional Data - National
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Additional Data - Private
-IsoField::new(FieldCharType::Iso8583_an ,  3,FieldSizeType::Fixed), // Currency Code, Txn
-IsoField::new(FieldCharType::Iso8583_an ,  3,FieldSizeType::Fixed), // Currency Code, Reconciliation
-IsoField::new(FieldCharType::Iso8583_an ,  3,FieldSizeType::Fixed), // Currency Code, Cardholder Billing
-IsoField::new(FieldCharType::Iso8583_ans  ,  16,FieldSizeType::Fixed), // Personal Id Number (PIN) Data
-IsoField::new(FieldCharType::Iso8583_ns  , 16,FieldSizeType::Fixed), // Security Related Control Information
-IsoField::new(FieldCharType::Iso8583_ans,120,FieldSizeType::LllVar), // Amounts, Additional
-IsoField::new(FieldCharType::Iso8583_ans  ,999,FieldSizeType::LllVar), // IC Card System Related Data
-IsoField::new(FieldCharType::Iso8583_ans , 35,FieldSizeType::LlVar), // Original Data Elements
-IsoField::new(FieldCharType::Iso8583_ans ,999,FieldSizeType::LllVar), // Authorization Life Cycle Code
-IsoField::new(FieldCharType::Iso8583_ans ,999,FieldSizeType::LllVar), // Authorizing Agent Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Transport Data
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed), // Message Authentication Code Field
-IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed), // Reserved for ISO use
-IsoField::new(FieldCharType::Iso8583_ans,  1,FieldSizeType::Fixed), //Reconciliation code , Original Fees
-IsoField::new(FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Extended Payment Data
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Receiving Inst
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Settlement Inst
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Network Management Information Code
-IsoField::new(FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Message Number
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Data Record
-IsoField::new(FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Date, Action
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Credits, Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Credits, Reversal Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Debits, Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Debits, Reversal Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Transfer, Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Transfer, Reversal Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Inquiries, Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Authorizations, Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Inquiries, Reversal Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Payments, Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Payments, Reversal Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Fee Collections, Number
-IsoField::new(FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Credits, Amount
-IsoField::new(FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Credits, Reversal Amount
-IsoField::new(FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Debits, Amount
-IsoField::new(FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Debits, Reversal Amount
-IsoField::new(FieldCharType::Iso8583_ns , 42,FieldSizeType::Fixed), // Authorizations, Reversal Number
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Txn Destination Inst
-IsoField::new(FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Txn Originator Inst
-IsoField::new(FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Txn Destination Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Txn Originator Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ans, 42,FieldSizeType::Fixed), // Card Issuer Reference Data
-IsoField::new(FieldCharType::Iso8583_b  ,999,FieldSizeType::LllVar), // Key Management Data
-IsoField::new(FieldCharType::Iso8583_xn , 17,FieldSizeType::Fixed), // Amount, Net Reconciliation
-IsoField::new(FieldCharType::Iso8583_ans, 25,FieldSizeType::Fixed), // Payee
-IsoField::new(FieldCharType::Iso8583_an , 11,FieldSizeType::LlVar), // Settlement Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Receiving Inst Id Code
-IsoField::new(FieldCharType::Iso8583_ans, 17,FieldSizeType::LlVar), // File Name
-IsoField::new(FieldCharType::Iso8583_ans, 28,FieldSizeType::LlVar), // Account Id 1
-IsoField::new(FieldCharType::Iso8583_ans, 28,FieldSizeType::LlVar), // Account Id 2
-IsoField::new(FieldCharType::Iso8583_ans,255,FieldSizeType::LllVar), // Txn Description
-IsoField::new(FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Credits, Chargeback Amount
-IsoField::new(FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Debits, Chargeback Amount
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Credits, Chargeback Number
-IsoField::new(FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Debits, Chargeback Number
-IsoField::new(FieldCharType::Iso8583_ans, 84,FieldSizeType::LlVar), // Credits, Fee Amounts
-IsoField::new(FieldCharType::Iso8583_ans, 84,FieldSizeType::LlVar), // Debits, Fee Amounts
-IsoField::new(FieldCharType::Iso8583_ns,12,FieldSizeType::Fixed ), // Reserved for ISO use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
-IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed),  // Message Authentication Code Field
+            let h = vec![
+IsoField::new("Message Type Indicator",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Message Type Indicator
+IsoField::new("Bitmap",FieldCharType::Iso8583_bmps, 16,FieldSizeType::BitMap), // Bitmap
+IsoField::new("Primary Account Number",FieldCharType::Iso8583_ns , 19,FieldSizeType::LlVar), // Primary Account Number
+IsoField::new("Processing Code",FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Processing Code
+IsoField::new("Amount, Txn",FieldCharType::Iso8583_ns , 12,FieldSizeType::Fixed), // Amount, Txn
+IsoField::new("Amount, Reconciliation",FieldCharType::Iso8583_ns , 12,FieldSizeType::Fixed), // Amount, Reconciliation
+IsoField::new("Amount, Cardholder Billing",FieldCharType::Iso8583_ns , 12,FieldSizeType::Fixed), // Amount, Cardholder Billing
+IsoField::new("Date and Time, Transmission",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Date and Time, Transmission
+IsoField::new("Amount, Cardholder Billing Fee",FieldCharType::Iso8583_ns ,  8,FieldSizeType::Fixed), // Amount, Cardholder Billing Fee
+IsoField::new("Conversion Rate, Reconciliation",FieldCharType::Iso8583_ns ,  8,FieldSizeType::Fixed), // Conversion Rate, Reconciliation
+IsoField::new("Conversion Rate, Cardholder Billing",FieldCharType::Iso8583_ns ,  8,FieldSizeType::Fixed), // Conversion Rate, Cardholder Billing
+IsoField::new("Systems Trace Audit Number",FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Systems Trace Audit Number
+IsoField::new("Date and Time, Local Txn",FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Date and Time, Local Txn
+IsoField::new("Date, Effective",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Effective
+IsoField::new("Date, Expiration",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Expiration
+IsoField::new("Date, Settlement",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Settlement
+IsoField::new("Date, Conversion",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Conversion
+IsoField::new("Date, Capture",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Date, Capture
+IsoField::new("Merchant Type",FieldCharType::Iso8583_ns ,  4,FieldSizeType::Fixed), // Merchant Type
+IsoField::new("Country Code, Acquiring Inst",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Acquiring Inst
+IsoField::new("Country Code, Primary Account Number",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Primary Account Number
+IsoField::new("Country Code, Forwarding Inst",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Forwarding Inst
+IsoField::new("Point of Service Data Code",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Point of Service Data Code
+IsoField::new("Card Sequence Number",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Card Sequence Number
+IsoField::new("Function Code",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Function Code
+IsoField::new("Message Reason Code",FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Message Reason Code
+IsoField::new("Card Acceptor Business Code",FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Card Acceptor Business Code
+IsoField::new("Approval Code Length",FieldCharType::Iso8583_ns ,  1,FieldSizeType::Fixed), // Approval Code Length
+IsoField::new("Date, Reconciliation",FieldCharType::Iso8583_ns ,  9,FieldSizeType::Fixed), // Date, Reconciliation
+IsoField::new("Reconciliation Indicator",FieldCharType::Iso8583_ns ,  9,FieldSizeType::Fixed), // Reconciliation Indicator
+IsoField::new("Amounts, Original",FieldCharType::Iso8583_ns , 24,FieldSizeType::Fixed), // Amounts, Original
+IsoField::new("Acquirer Reference Data",FieldCharType::Iso8583_ans, 99,FieldSizeType::LlVar), // Acquirer Reference Data
+IsoField::new(" Acquirer Inst Id Code",FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Acquirer Inst Id Code
+IsoField::new("Forwarding Inst Id Code",FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Forwarding Inst Id Code
+IsoField::new("Primary Account Number, Extended",FieldCharType::Iso8583_ns , 28,FieldSizeType::LlVar), // Primary Account Number, Extended
+IsoField::new("Track 2 Data",FieldCharType::ISO8583_z  , 37,FieldSizeType::LlVar), // Track 2 Data
+IsoField::new("Track 3 Data",FieldCharType::ISO8583_z  ,104,FieldSizeType::LllVar), // Track 3 Data
+IsoField::new("Retrieval Reference Number",FieldCharType::Iso8583_anp, 12,FieldSizeType::Fixed), // Retrieval Reference Number
+IsoField::new("Approval Code",FieldCharType::Iso8583_anp,  6,FieldSizeType::Fixed), // Approval Code
+IsoField::new("Action Code",FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Action Code
+IsoField::new("Service Code",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Service Code
+IsoField::new("Card Acceptor Terminal Id",FieldCharType::Iso8583_ans,  8,FieldSizeType::Fixed), // Card Acceptor Terminal Id
+IsoField::new("Card Acceptor Id Code",FieldCharType::Iso8583_ans, 15,FieldSizeType::Fixed), // Card Acceptor Id Code
+IsoField::new("Card Acceptor Name/Location",FieldCharType::Iso8583_ans, 40,FieldSizeType::Fixed), // Card Acceptor Name/Location
+IsoField::new("dditional Response Data",FieldCharType::Iso8583_ans, 99,FieldSizeType::LlVar), // Additional Response Data
+IsoField::new("Track 1 Data",FieldCharType::Iso8583_ans, 76,FieldSizeType::LlVar), // Track 1 Data
+IsoField::new("Amounts, Fees",FieldCharType::Iso8583_ans,204,FieldSizeType::LllVar), // Amounts, Fees
+IsoField::new("Additional Data - National",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Additional Data - National
+IsoField::new("Additional Data - Private",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Additional Data - Private
+IsoField::new("Currency Code, Txn",FieldCharType::Iso8583_an ,  3,FieldSizeType::Fixed), // Currency Code, Txn
+IsoField::new("Currency Code, Reconciliation",FieldCharType::Iso8583_an ,  3,FieldSizeType::Fixed), // Currency Code, Reconciliation
+IsoField::new("Currency Code, Cardholder Billing",FieldCharType::Iso8583_an ,  3,FieldSizeType::Fixed), // Currency Code, Cardholder Billing
+IsoField::new("Personal Id Number (PIN) Data",FieldCharType::Iso8583_ans  ,  16,FieldSizeType::Fixed), // Personal Id Number (PIN) Data
+IsoField::new("Security Related Control Information",FieldCharType::Iso8583_ns  , 16,FieldSizeType::Fixed), // Security Related Control Information
+IsoField::new("Amounts, Additional",FieldCharType::Iso8583_ans,120,FieldSizeType::LllVar), // Amounts, Additional
+IsoField::new("IC Card System Related Data",FieldCharType::Iso8583_ans  ,999,FieldSizeType::LllVar), // IC Card System Related Data
+IsoField::new("Original Data Elements",FieldCharType::Iso8583_ans , 35,FieldSizeType::LlVar), // Original Data Elements
+IsoField::new("Authorization Life Cycle Code",FieldCharType::Iso8583_ans ,999,FieldSizeType::LllVar), // Authorization Life Cycle Code
+IsoField::new("Authorizing Agent Inst Id Cod",FieldCharType::Iso8583_ans ,999,FieldSizeType::LllVar), // Authorizing Agent Inst Id Code
+IsoField::new("Transport Data",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Transport Data
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Message Authentication Code Field",FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed), // Message Authentication Code Field
+IsoField::new("Reserved for ISO use",FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed), // Reserved for ISO use
+IsoField::new("Reconciliation code , Original Fees",FieldCharType::Iso8583_ans,  1,FieldSizeType::Fixed), //Reconciliation code , Original Fees
+IsoField::new("Extended Payment Data",FieldCharType::Iso8583_ns ,  2,FieldSizeType::Fixed), // Extended Payment Data
+IsoField::new("Country Code, Receiving Inst",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Receiving Inst
+IsoField::new("Country Code, Settlement Inst",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Settlement Inst
+IsoField::new("Network Management Information Code",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Network Management Information Code
+IsoField::new("Message Number",FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Message Number
+IsoField::new("Data Record",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Data Record
+IsoField::new("Date, Action",FieldCharType::Iso8583_ns ,  6,FieldSizeType::Fixed), // Date, Action
+IsoField::new("Credits, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Credits, Number
+IsoField::new("Credits, Reversal Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Credits, Reversal Number
+IsoField::new("Debits, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Debits, Number
+IsoField::new("Debits, Reversal Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Debits, Reversal Number
+IsoField::new("Transfer, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Transfer, Number
+IsoField::new("Transfer, Reversal Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Transfer, Reversal Number
+IsoField::new("Inquiries, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Inquiries, Number
+IsoField::new("Authorizations, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Authorizations, Number
+IsoField::new("Inquiries, Reversal Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Inquiries, Reversal Number
+IsoField::new("Payments, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Payments, Number
+IsoField::new("Payments, Reversal Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Payments, Reversal Number
+IsoField::new("Fee Collections, Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Fee Collections, Number
+IsoField::new("Credits, Amount",FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Credits, Amount
+IsoField::new("Credits, Reversal Amount",FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Credits, Reversal Amount
+IsoField::new("Debits, Amount",FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Debits, Amount
+IsoField::new("Debits, Reversal Amount",FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Debits, Reversal Amount
+IsoField::new("Authorizations, Reversal Number",FieldCharType::Iso8583_ns , 42,FieldSizeType::Fixed), // Authorizations, Reversal Number
+IsoField::new("Country Code, Txn Destination Inst",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Txn Destination Inst
+IsoField::new("Country Code, Txn Originator Inst",FieldCharType::Iso8583_ns ,  3,FieldSizeType::Fixed), // Country Code, Txn Originator Inst
+IsoField::new("Txn Destination Inst Id Code",FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Txn Destination Inst Id Code
+IsoField::new("Txn Originator Inst Id Code",FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Txn Originator Inst Id Code
+IsoField::new("Card Issuer Reference Data",FieldCharType::Iso8583_ans, 42,FieldSizeType::Fixed), // Card Issuer Reference Data
+IsoField::new("Key Management Data",FieldCharType::Iso8583_b  ,999,FieldSizeType::LllVar), // Key Management Data
+IsoField::new("Amount, Net Reconciliation",FieldCharType::Iso8583_xn , 17,FieldSizeType::Fixed), // Amount, Net Reconciliation
+IsoField::new("Payee",FieldCharType::Iso8583_ans, 25,FieldSizeType::Fixed), // Payee
+IsoField::new("Settlement Inst Id Code",FieldCharType::Iso8583_an , 11,FieldSizeType::LlVar), // Settlement Inst Id Code
+IsoField::new("Receiving Inst Id Code",FieldCharType::Iso8583_ns , 11,FieldSizeType::LlVar), // Receiving Inst Id Code
+IsoField::new("File Name",FieldCharType::Iso8583_ans, 17,FieldSizeType::LlVar), // File Name
+IsoField::new("Account Id 1",FieldCharType::Iso8583_ans, 28,FieldSizeType::LlVar), // Account Id 1
+IsoField::new("Account Id 2",FieldCharType::Iso8583_ans, 28,FieldSizeType::LlVar), // Account Id 2
+IsoField::new("Txn Description",FieldCharType::Iso8583_ans,255,FieldSizeType::LllVar), // Txn Description
+IsoField::new("Credits, Chargeback Amount",FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Credits, Chargeback Amount
+IsoField::new("Debits, Chargeback Amount",FieldCharType::Iso8583_ns , 16,FieldSizeType::Fixed), // Debits, Chargeback Amount
+IsoField::new("Credits, Chargeback Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Credits, Chargeback Number
+IsoField::new("Debits, Chargeback Number",FieldCharType::Iso8583_ns , 10,FieldSizeType::Fixed), // Debits, Chargeback Number
+IsoField::new("Credits, Fee Amounts",FieldCharType::Iso8583_ans, 84,FieldSizeType::LlVar), // Credits, Fee Amounts
+IsoField::new("Debits, Fee Amounts",FieldCharType::Iso8583_ans, 84,FieldSizeType::LlVar), // Debits, Fee Amounts
+IsoField::new("Reserved for ISO use",FieldCharType::Iso8583_ns,12,FieldSizeType::Fixed ), // Reserved for ISO use
+IsoField::new("Reserved for ISO use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
+IsoField::new("Reserved for ISO use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
+IsoField::new("Reserved for ISO use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
+IsoField::new("Reserved for ISO use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for ISO use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for National use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for National use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Reserved for Private use",FieldCharType::Iso8583_ans,999,FieldSizeType::LllVar), // Reserved for Private use
+IsoField::new("Message Authentication Code Field",FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed),  // Message Authentication Code Field
   ];
             return h;
         }
@@ -585,13 +619,17 @@ IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed),  // Message 
     #[test]
     fn from_byte_array_test() {
         let payload = "0100F2246481087088360000000000000004016123456717929985100300000000000013112042128251178162210581284001059006419310712815007743555555555555888Test Merchant         Richmond1    51USA011          N8402001010000000000014510002329467890120100  00054002140000000000012312340001080000000020120040001N 989";
-        // println!("self.iso_spec.get_handle().len(): {}", self.iso_spec.get_handle().len());
-        let spec = AuthSpecs::new();
-        let mut fields = Vec::<FieldPayload>::with_capacity(spec.get_handle().len());
 
-        // println!("Fields length:{}", fields.len());
+        let iso_spec = AuthSpecs::new();
+        trace!(
+            "iso_spec.get_handle().len(): {}",
+            iso_spec.get_handle().len()
+        );
+        let mut fields = Vec::<FieldPayload>::with_capacity(iso_spec.get_handle().len());
 
-        IsoMsg::from_byte_array(&spec, &mut fields, payload.as_bytes());
+        trace!("Fields length:{}", fields.len());
+
+        IsoMsg::from_byte_array(&iso_spec, &mut fields, payload.as_bytes());
 
     }
 
@@ -604,27 +642,27 @@ IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed),  // Message 
         {
             let res = iso_msg.get_field(0, &mut buffer);
             assert_eq!(res.unwrap(), 4);
-            // println!("mti: {}", str::from_utf8(&buffer[..4]).unwrap());
+            trace!("mti: {}", str::from_utf8(&buffer[..4]).unwrap());
             assert_eq!(&buffer[..4], "0100".as_bytes());
         }
         {
             let res = iso_msg.get_field(1, &mut buffer);
             assert_eq!(res.unwrap(), 32);
-            // println!("bitmap: {}", str::from_utf8(&buffer[..32]).unwrap());
+            trace!("bitmap: {}", str::from_utf8(&buffer[..32]).unwrap());
             assert_eq!(&buffer[..32], "F2246481087088360000000000000004".as_bytes());
         }
         {
-            //println!("get index 2: card");
+            trace!("get index 2: card");
             let res = iso_msg.get_field(2, &mut buffer);
-            //println!("get index 2: card");
+            trace!("get index 2: card");
             assert_eq!(res.unwrap(), 16);
-            //println!("card: {}", str::from_utf8(&buffer[..16]).unwrap());
+            trace!("card: {}", str::from_utf8(&buffer[..16]).unwrap());
             assert_eq!(&buffer[..16], "1234567179299851".as_bytes());
         }
         {
             let res = iso_msg.get_field(3, &mut buffer);
             assert_eq!(res.unwrap(), 6);
-            //println!("{}", str::from_utf8(&buffer[..6]).unwrap());
+            trace!("{}", str::from_utf8(&buffer[..6]).unwrap());
             assert_eq!(&buffer[..6], "003000".as_bytes());
         }
 
@@ -721,9 +759,12 @@ IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed),  // Message 
 
         //verify no changes to bitmap
         {
-            let _ = iso_msg.to_byte_array(&mut out_buffer);
+            let total_size = iso_msg.to_byte_array(&mut out_buffer);
 
-            // println!("iso_msg::to_byte_array:{}", str::from_utf8(&out_buffer[..total_size]).unwrap());
+            trace!(
+                "iso_msg::to_byte_array:{}",
+                str::from_utf8(&out_buffer[..total_size]).unwrap()
+            );
             //  assert_eq!(payload.len(), total_size);
             assert_eq!(
                 str::from_utf8(&out_buffer[4..36 as usize]).unwrap(),
@@ -826,5 +867,77 @@ IsoField::new(FieldCharType::Iso8583_b  ,  8,FieldSizeType::Fixed),  // Message 
         assert_eq!(payload.len(), total_size);
         assert_eq!(str::from_utf8(&buffer[0..total_size]).unwrap(), payload);
     }
+    #[test]
+    fn to_yaml_str() {
+        let specs = AuthSpecs::new();
+        let yaml_str = YamlSpec::to_string(specs.get_handle());
+        trace!("YAML:\n{}", yaml_str);
+    }
+
+    #[test]
+    fn network_req_test() {
+        let req = "0800822000000000000004000000000000001113192531105218001";
+        let res = "081082200000020000000400000000000000111319253110521800001";
+        let handle = AuthSpecs::new();
+        let _iso_msg = IsoMsg::new(&handle, req.as_bytes());
+        let mut buffer = [0u8; 1024];
+
+        let res = _iso_msg.get_field(7, &mut buffer); //timestamp, len 10
+        assert_eq!(res.is_ok(), true);
+        assert_eq!(
+            "1113192531",
+            str::from_utf8(&buffer[0..res.unwrap()]).unwrap()
+        );
+
+
+        let res1 = _iso_msg.get_field(11, &mut buffer); //trace audit, len 6
+        assert_eq!(res1.is_ok(), true);
+        assert_eq!("105218", str::from_utf8(&buffer[0..res1.unwrap()]).unwrap());
+
+
+        let res2 = _iso_msg.get_field(70, &mut buffer); //network action, logon/logoff, len 3
+        assert_eq!(res2.is_ok(), true);
+        assert_eq!("001", str::from_utf8(&buffer[0..res2.unwrap()]).unwrap());
+
+        let mut total_size = _iso_msg.to_byte_array(&mut buffer);
+        assert_eq!(req.len(), total_size);
+        assert_eq!(str::from_utf8(&buffer[0..total_size]).unwrap(), req);
+    }
+
+    #[test]
+    fn network_res_test() {
+        //let req = "0800822000000000000004000000000000001113192531105218001";
+        let req = "081082200000020000000400000000000000111319253110521800001";
+        let handle = AuthSpecs::new();
+        let _iso_msg = IsoMsg::new(&handle, req.as_bytes());
+        let mut buffer = [0u8; 1024];
+
+        let res = _iso_msg.get_field(7, &mut buffer); //timestamp, len 10
+        assert_eq!(res.is_ok(), true);
+        assert_eq!(
+            "1113192531",
+            str::from_utf8(&buffer[0..res.unwrap()]).unwrap()
+        );
+
+
+        let res1 = _iso_msg.get_field(11, &mut buffer); //trace audit, len 6
+        assert_eq!(res1.is_ok(), true);
+        assert_eq!("105218", str::from_utf8(&buffer[0..res1.unwrap()]).unwrap());
+
+        let res1 = _iso_msg.get_field(39, &mut buffer); //response code, len 2
+        assert_eq!(res1.is_ok(), true);
+        assert_eq!("00", str::from_utf8(&buffer[0..res1.unwrap()]).unwrap());
+
+
+        let res2 = _iso_msg.get_field(70, &mut buffer); //network action, logon/logoff, len 3
+        assert_eq!(res2.is_ok(), true);
+        assert_eq!("001", str::from_utf8(&buffer[0..res2.unwrap()]).unwrap());
+
+        let mut total_size = _iso_msg.to_byte_array(&mut buffer);
+        assert_eq!(req.len(), total_size);
+        assert_eq!(str::from_utf8(&buffer[0..total_size]).unwrap(), req);
+    }
+
+
 
 }

@@ -15,5 +15,10 @@ readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 
 [dependencies]
+log = "0.3.8"
 bit-array="0.4.4"
 typenum= "1.9.0"
+yaml-rust="0.4.0"
+serde = "1.0"
+serde_derive = "1.0"
+serde_yaml = "0.7"
