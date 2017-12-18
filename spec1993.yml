@@ -1,0 +1,645 @@
+0:
+  Label: Message Type Indicator
+  Length: "4"
+  ContentType: ns
+  LengthType: fixed
+1:
+  ContentType: bmps
+  Label: Bitmap
+  LengthType: bitmap
+  Length: "16"
+2:
+  LengthType: llvar
+  ContentType: ns
+  Length: "19"
+  Label: Primary Account Number
+3:
+  ContentType: ns
+  LengthType: fixed
+  Length: "6"
+  Label: Processing Code
+4:
+  Label: "Amount, Txn"
+  ContentType: ns
+  LengthType: fixed
+  Length: "12"
+5:
+  ContentType: ns
+  Length: "12"
+  LengthType: fixed
+  Label: "Amount, Reconciliation"
+6:
+  Length: "12"
+  LengthType: fixed
+  Label: "Amount, Cardholder Billing"
+  ContentType: ns
+7:
+  ContentType: ns
+  Label: "Date and Time, Transmission"
+  LengthType: fixed
+  Length: "10"
+8:
+  ContentType: ns
+  LengthType: fixed
+  Length: "8"
+  Label: "Amount, Cardholder Billing Fee"
+9:
+  Length: "8"
+  ContentType: ns
+  Label: "Conversion Rate, Reconciliation"
+  LengthType: fixed
+10:
+  Label: "Conversion Rate, Cardholder Billing"
+  Length: "8"
+  ContentType: ns
+  LengthType: fixed
+11:
+  ContentType: ns
+  LengthType: fixed
+  Length: "6"
+  Label: Systems Trace Audit Number
+12:
+  ContentType: ns
+  Length: "6"
+  LengthType: fixed
+  Label: "Date and Time, Local Txn"
+13:
+  ContentType: ns
+  LengthType: fixed
+  Length: "4"
+  Label: "Date, Effective"
+14:
+  Label: "Date, Expiration"
+  ContentType: ns
+  Length: "4"
+  LengthType: fixed
+15:
+  Label: "Date, Settlement"
+  Length: "4"
+  ContentType: ns
+  LengthType: fixed
+16:
+  Length: "4"
+  ContentType: ns
+  LengthType: fixed
+  Label: "Date, Conversion"
+17:
+  LengthType: fixed
+  Length: "4"
+  ContentType: ns
+  Label: "Date, Capture"
+18:
+  Label: Merchant Type
+  LengthType: fixed
+  ContentType: ns
+  Length: "4"
+19:
+  ContentType: ns
+  LengthType: fixed
+  Length: "3"
+  Label: "Country Code, Acquiring Inst"
+20:
+  Label: "Country Code, Primary Account Number"
+  ContentType: ns
+  Length: "3"
+  LengthType: fixed
+21:
+  ContentType: ns
+  LengthType: fixed
+  Length: "3"
+  Label: "Country Code, Forwarding Inst"
+22:
+  LengthType: fixed
+  ContentType: ns
+  Label: Point of Service Data Code
+  Length: "3"
+23:
+  Length: "3"
+  LengthType: fixed
+  ContentType: ns
+  Label: Card Sequence Number
+24:
+  LengthType: fixed
+  ContentType: ns
+  Label: Function Code
+  Length: "3"
+25:
+  Label: Message Reason Code
+  ContentType: ns
+  Length: "2"
+  LengthType: fixed
+26:
+  ContentType: ns
+  Length: "2"
+  LengthType: fixed
+  Label: Card Acceptor Business Code
+27:
+  Length: "1"
+  LengthType: fixed
+  Label: Approval Code Length
+  ContentType: ns
+28:
+  Label: "Date, Reconciliation"
+  Length: "9"
+  LengthType: fixed
+  ContentType: ns
+29:
+  ContentType: ns
+  Length: "9"
+  LengthType: fixed
+  Label: Reconciliation Indicator
+30:
+  Label: "Amounts, Original"
+  Length: "24"
+  LengthType: fixed
+  ContentType: ns
+31:
+  Label: Acquirer Reference Data
+  LengthType: llvar
+  Length: "99"
+  ContentType: ans
+32:
+  Label: " Acquirer Inst Id Code"
+  LengthType: llvar
+  ContentType: ns
+  Length: "11"
+33:
+  Label: Forwarding Inst Id Code
+  LengthType: llvar
+  Length: "11"
+  ContentType: ns
+34:
+  Label: "Primary Account Number, Extended"
+  LengthType: llvar
+  ContentType: ns
+  Length: "28"
+35:
+  ContentType: z
+  Label: Track 2 Data
+  Length: "37"
+  LengthType: llvar
+36:
+  LengthType: lllvar
+  ContentType: z
+  Label: Track 3 Data
+  Length: "104"
+37:
+  Label: Retrieval Reference Number
+  ContentType: anp
+  Length: "12"
+  LengthType: fixed
+38:
+  LengthType: fixed
+  Label: Approval Code
+  ContentType: anp
+  Length: "6"
+39:
+  Label: Action Code
+  Length: "2"
+  ContentType: ns
+  LengthType: fixed
+40:
+  LengthType: fixed
+  Length: "3"
+  Label: Service Code
+  ContentType: ns
+41:
+  Label: Card Acceptor Terminal Id
+  Length: "8"
+  LengthType: fixed
+  ContentType: ans
+42:
+  ContentType: ans
+  LengthType: fixed
+  Label: Card Acceptor Id Code
+  Length: "15"
+43:
+  Label: Card Acceptor Name/Location
+  LengthType: fixed
+  ContentType: ans
+  Length: "40"
+44:
+  ContentType: ans
+  Length: "99"
+  Label: dditional Response Data
+  LengthType: llvar
+45:
+  Label: Track 1 Data
+  LengthType: llvar
+  Length: "76"
+  ContentType: ans
+46:
+  LengthType: lllvar
+  Length: "204"
+  ContentType: ans
+  Label: "Amounts, Fees"
+47:
+  Label: "Additional Data - National"
+  ContentType: ans
+  LengthType: lllvar
+  Length: "999"
+48:
+  Length: "999"
+  LengthType: lllvar
+  Label: "Additional Data - Private"
+  ContentType: ans
+49:
+  ContentType: an
+  Length: "3"
+  LengthType: fixed
+  Label: "Currency Code, Txn"
+50:
+  Length: "3"
+  LengthType: fixed
+  ContentType: an
+  Label: "Currency Code, Reconciliation"
+51:
+  LengthType: fixed
+  Label: "Currency Code, Cardholder Billing"
+  ContentType: an
+  Length: "3"
+52:
+  ContentType: ans
+  Length: "16"
+  Label: Personal Id Number (PIN) Data
+  LengthType: fixed
+53:
+  Label: Security Related Control Information
+  LengthType: fixed
+  Length: "16"
+  ContentType: ns
+54:
+  ContentType: ans
+  Length: "120"
+  LengthType: lllvar
+  Label: "Amounts, Additional"
+55:
+  LengthType: lllvar
+  ContentType: ans
+  Length: "999"
+  Label: IC Card System Related Data
+56:
+  LengthType: llvar
+  ContentType: ans
+  Label: Original Data Elements
+  Length: "35"
+57:
+  LengthType: lllvar
+  Length: "999"
+  ContentType: ans
+  Label: Authorization Life Cycle Code
+58:
+  Label: Authorizing Agent Inst Id Cod
+  Length: "999"
+  LengthType: lllvar
+  ContentType: ans
+59:
+  ContentType: ans
+  Label: Transport Data
+  LengthType: lllvar
+  Length: "999"
+60:
+  ContentType: ans
+  LengthType: lllvar
+  Length: "999"
+  Label: Reserved for National use
+61:
+  Length: "999"
+  Label: Reserved for National use
+  ContentType: ans
+  LengthType: lllvar
+62:
+  LengthType: lllvar
+  Label: Reserved for Private use
+  ContentType: ans
+  Length: "999"
+63:
+  Length: "999"
+  Label: Reserved for Private use
+  LengthType: lllvar
+  ContentType: ans
+64:
+  ContentType: b
+  Length: "8"
+  Label: Message Authentication Code Field
+  LengthType: fixed
+65:
+  Label: Reserved for ISO use
+  ContentType: b
+  Length: "8"
+  LengthType: fixed
+66:
+  Length: "1"
+  LengthType: fixed
+  Label: "Reconciliation code , Original Fees"
+  ContentType: ans
+67:
+  LengthType: fixed
+  Label: Extended Payment Data
+  Length: "2"
+  ContentType: ns
+68:
+  LengthType: fixed
+  Length: "3"
+  Label: "Country Code, Receiving Inst"
+  ContentType: ns
+69:
+  LengthType: fixed
+  ContentType: ns
+  Label: "Country Code, Settlement Inst"
+  Length: "3"
+70:
+  ContentType: ns
+  Label: Network Management Information Code
+  Length: "3"
+  LengthType: fixed
+71:
+  Label: Message Number
+  LengthType: fixed
+  ContentType: ns
+  Length: "6"
+72:
+  Length: "999"
+  ContentType: ans
+  LengthType: lllvar
+  Label: Data Record
+73:
+  LengthType: fixed
+  Label: "Date, Action"
+  ContentType: ns
+  Length: "6"
+74:
+  ContentType: ns
+  LengthType: fixed
+  Label: "Credits, Number"
+  Length: "10"
+75:
+  LengthType: fixed
+  ContentType: ns
+  Label: "Credits, Reversal Number"
+  Length: "10"
+76:
+  Label: "Debits, Number"
+  ContentType: ns
+  LengthType: fixed
+  Length: "10"
+77:
+  ContentType: ns
+  Length: "10"
+  LengthType: fixed
+  Label: "Debits, Reversal Number"
+78:
+  LengthType: fixed
+  ContentType: ns
+  Label: "Transfer, Number"
+  Length: "10"
+79:
+  LengthType: fixed
+  Label: "Transfer, Reversal Number"
+  Length: "10"
+  ContentType: ns
+80:
+  LengthType: fixed
+  Label: "Inquiries, Number"
+  Length: "10"
+  ContentType: ns
+81:
+  LengthType: fixed
+  ContentType: ns
+  Length: "10"
+  Label: "Authorizations, Number"
+82:
+  Label: "Inquiries, Reversal Number"
+  ContentType: ns
+  LengthType: fixed
+  Length: "10"
+83:
+  ContentType: ns
+  Label: "Payments, Number"
+  Length: "10"
+  LengthType: fixed
+84:
+  LengthType: fixed
+  Length: "10"
+  Label: "Payments, Reversal Number"
+  ContentType: ns
+85:
+  Label: "Fee Collections, Number"
+  LengthType: fixed
+  Length: "10"
+  ContentType: ns
+86:
+  Length: "16"
+  LengthType: fixed
+  Label: "Credits, Amount"
+  ContentType: ns
+87:
+  Length: "16"
+  Label: "Credits, Reversal Amount"
+  LengthType: fixed
+  ContentType: ns
+88:
+  LengthType: fixed
+  ContentType: ns
+  Label: "Debits, Amount"
+  Length: "16"
+89:
+  Length: "16"
+  Label: "Debits, Reversal Amount"
+  ContentType: ns
+  LengthType: fixed
+90:
+  Length: "42"
+  Label: "Authorizations, Reversal Number"
+  LengthType: fixed
+  ContentType: ns
+91:
+  LengthType: fixed
+  Label: "Country Code, Txn Destination Inst"
+  Length: "3"
+  ContentType: ns
+92:
+  Label: "Country Code, Txn Originator Inst"
+  LengthType: fixed
+  Length: "3"
+  ContentType: ns
+93:
+  Label: Txn Destination Inst Id Code
+  LengthType: llvar
+  Length: "11"
+  ContentType: ns
+94:
+  ContentType: ns
+  Length: "11"
+  Label: Txn Originator Inst Id Code
+  LengthType: llvar
+95:
+  Length: "42"
+  Label: Card Issuer Reference Data
+  LengthType: fixed
+  ContentType: ans
+96:
+  ContentType: b
+  LengthType: lllvar
+  Length: "999"
+  Label: Key Management Data
+97:
+  ContentType: xs
+  Label: "Amount, Net Reconciliation"
+  Length: "17"
+  LengthType: fixed
+98:
+  Length: "25"
+  LengthType: fixed
+  ContentType: ans
+  Label: Payee
+99:
+  Length: "11"
+  LengthType: llvar
+  Label: Settlement Inst Id Code
+  ContentType: an
+100:
+  Label: Receiving Inst Id Code
+  Length: "11"
+  LengthType: llvar
+  ContentType: ns
+101:
+  ContentType: ans
+  Label: File Name
+  LengthType: llvar
+  Length: "17"
+102:
+  LengthType: llvar
+  Label: Account Id 1
+  ContentType: ans
+  Length: "28"
+103:
+  Length: "28"
+  ContentType: ans
+  LengthType: llvar
+  Label: Account Id 2
+104:
+  Label: Txn Description
+  ContentType: ans
+  Length: "255"
+  LengthType: lllvar
+105:
+  LengthType: fixed
+  Length: "16"
+  Label: "Credits, Chargeback Amount"
+  ContentType: ns
+106:
+  Length: "16"
+  Label: "Debits, Chargeback Amount"
+  LengthType: fixed
+  ContentType: ns
+107:
+  ContentType: ns
+  Length: "10"
+  LengthType: fixed
+  Label: "Credits, Chargeback Number"
+108:
+  LengthType: fixed
+  Length: "10"
+  ContentType: ns
+  Label: "Debits, Chargeback Number"
+109:
+  LengthType: llvar
+  Length: "84"
+  ContentType: ans
+  Label: "Credits, Fee Amounts"
+110:
+  ContentType: ans
+  LengthType: llvar
+  Label: "Debits, Fee Amounts"
+  Length: "84"
+111:
+  LengthType: fixed
+  Length: "12"
+  ContentType: ns
+  Label: Reserved for ISO use
+112:
+  Label: Reserved for ISO use
+  ContentType: ans
+  Length: "999"
+  LengthType: lllvar
+113:
+  LengthType: lllvar
+  Length: "999"
+  Label: Reserved for ISO use
+  ContentType: ans
+114:
+  Label: Reserved for ISO use
+  Length: "999"
+  ContentType: ans
+  LengthType: lllvar
+115:
+  Label: Reserved for ISO use
+  ContentType: ans
+  Length: "999"
+  LengthType: lllvar
+116:
+  Length: "999"
+  Label: Reserved for National use
+  LengthType: lllvar
+  ContentType: ans
+117:
+  Label: Reserved for National use
+  Length: "999"
+  LengthType: lllvar
+  ContentType: ans
+118:
+  Label: Reserved for National use
+  ContentType: ans
+  LengthType: lllvar
+  Length: "999"
+119:
+  LengthType: lllvar
+  Label: Reserved for National use
+  ContentType: ans
+  Length: "999"
+120:
+  Label: Reserved for National use
+  Length: "999"
+  ContentType: ans
+  LengthType: lllvar
+121:
+  Length: "999"
+  Label: Reserved for National use
+  LengthType: lllvar
+  ContentType: ans
+122:
+  LengthType: lllvar
+  Label: Reserved for National use
+  ContentType: ans
+  Length: "999"
+123:
+  Length: "999"
+  LengthType: lllvar
+  Label: Reserved for Private use
+  ContentType: ans
+124:
+  LengthType: lllvar
+  ContentType: ans
+  Label: Reserved for Private use
+  Length: "999"
+125:
+  Label: Reserved for Private use
+  LengthType: lllvar
+  ContentType: ans
+  Length: "999"
+126:
+  Label: Reserved for Private use
+  Length: "999"
+  ContentType: ans
+  LengthType: lllvar
+127:
+  LengthType: lllvar
+  Label: Reserved for Private use
+  ContentType: ans
+  Length: "999"
+128:
+  ContentType: b
+  LengthType: fixed
+  Length: "8"
+  Label: Message Authentication Code Field
