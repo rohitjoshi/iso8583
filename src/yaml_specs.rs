@@ -14,11 +14,7 @@ use iso_field::IsoField;
 use iso_field::FieldSizeType;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
-/// `IsoSpecs` Interface
-/// This defines the Iso8583 message format
-pub trait IsoSpecs {
-    fn get_handle(&self) -> &Vec<IsoField>;
-}
+use iso_msg::IsoSpecs;
 
 /// Auth spec defines the format of Iso8583 message
 pub struct YamlSpec {
@@ -46,7 +42,7 @@ impl YamlSpec {
     pub size_type: FieldSizeType,
     pub length: usize,
     */
-    pub fn to_string(handle: &Vec<IsoField>) -> String {
+     fn to_string(handle: &Vec<IsoField>) -> String {
         let mut btmap = BTreeMap::<usize, HashMap<String,String>>::new();
         for index in  0..handle.len() {
             let mut map = HashMap::<String,String>::with_capacity(4);
@@ -60,7 +56,7 @@ impl YamlSpec {
         return serde_yaml::to_string(&btmap).unwrap();
     }
     
-    pub fn from_string(yaml_string: &str) -> Result<Vec<IsoField>, String> {
+    fn from_string(yaml_string: &str) -> Result<Vec<IsoField>, String> {
         let fields: BTreeMap<usize, HashMap<String,String>> = match serde_yaml::from_str(&yaml_string) {
             Err(e) => {
                 return Err(format!(
@@ -198,5 +194,36 @@ mod tests {
         assert_eq!(fields.unwrap().len(),2 );
        
         }
+
+        #[test]
+        fn yaml_spec_file_test() {
+            use std::fs::File;
+            use std::io::prelude::*;
+            use iso_msg::IsoMsg;
+
+            let file_res = File::open("spec1993.yml");
+            assert_eq!(file_res.is_ok(), true);
+            let mut file = file_res.unwrap();
+            let mut contents = String::new();
+            file.read_to_string(&mut contents);
+            let specs_res = YamlSpec::new(&contents);
+            assert_eq!(specs_res.is_ok(), true);
+            let handle = specs_res.unwrap();
+            assert_eq!(handle.get_handle().len(), 129);
+
+            let payload = "0100F2246481087088360000000000000004016123456717929985100300000000000013112042128251178162210581284001059006419310712815007743555555555555888Test Merchant         Richmond1    51USA011          N8402001010000000000014510002329467890120100  00054002140000000000012312340001080000000020120040001N 989";
+            
+            let mut iso_msg = IsoMsg::new(&handle, payload.as_bytes());
+            let mut buffer = [0u8; 1024];
+            {
+                let res = iso_msg.get_field(0, &mut buffer);
+                assert_eq!(res.unwrap(), 4);
+                trace!("mti: {}", str::from_utf8(&buffer[..4]).unwrap());
+                assert_eq!(&buffer[..4], "0100".as_bytes());
+            }
+        }
+
+      
+
   
 }

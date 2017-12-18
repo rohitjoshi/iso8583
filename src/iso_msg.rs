@@ -15,7 +15,14 @@ use iso_field::FieldCharType;
 use iso_field::FieldPayload;
 use iso_field::IsoField;
 use iso_field::FieldSizeType;
-use yaml_specs::IsoSpecs;
+
+
+
+/// `IsoSpecs` Interface
+/// This defines the Iso8583 message format
+pub trait IsoSpecs {
+    fn get_handle(&self) -> &Vec<IsoField>;
+}
 
 /// `IsoMsg`
 pub struct IsoMsg<'a, 'b> {
@@ -388,7 +395,7 @@ mod tests {
     use iso_field::FieldPayload;
     use iso_field::FieldSizeType;
     use iso_field::IsoField;
-    use yaml_specs::IsoSpecs;
+
     use yaml_specs::YamlSpec;
 
     /// Auth spec defines the format of Iso8583 message
@@ -603,9 +610,9 @@ IsoField::new("Message Authentication Code Field",FieldCharType::Iso8583_b  ,  8
 
     #[test]
     fn process_bitmap_test() {
-        let bitmap = "F2246481087088360000000000000004";
+        let bitmap = "0010F2246481087088360000000000000004";
         let handle = AuthSpecs::new();
-        let (bit_arrays, _) = IsoMsg::process_bitmap(&handle, 0, bitmap.as_bytes());
+        let (bit_arrays, _) = IsoMsg::process_bitmap(&handle, 1, bitmap.as_bytes());
         assert_eq!(bit_arrays.len(), 1);
         // let mut field_index =2;
        /*
@@ -772,24 +779,7 @@ IsoField::new("Message Authentication Code Field",FieldCharType::Iso8583_b  ,  8
             );
         }
 
-        //token response details
-        {
-            let response = "91000161234567179299851910100422109103011000578187589104005123459105014201710041712289106001A910700300291080020291090020291100366e0b82bb-fdd1-49bd-8408-46e6b55007f1";
-            let res = iso_msg.set_field(57, response.as_bytes()); // set token expiry as pan expiry
-            assert_eq!(res, Ok(()));
-        }
 
-        {
-            let total_size = iso_msg.to_byte_array(&mut out_buffer);
-            assert!(total_size > 0);
-
-
-            // assert_eq!(out_len as usize, tiso_msg_byte_array.len());
-            //    assert_eq!(
-            //        str::from_utf8(&out_buffer[4..36 as usize]).unwrap(),
-            //        "F22464810A7088B60000000000000004"
-            //    );
-        }
 
         //remove 126  (it remove last character set:4 in the bitmap )
         {
@@ -820,8 +810,7 @@ IsoField::new("Message Authentication Code Field",FieldCharType::Iso8583_b  ,  8
         }
 
 
-        let tiso_msg_responsebyte_array = "0110F22464810A7088B6000000000000000001612345672297417250030000000000001311204212825117816220258128400105900641931071281500774300555555555555888Test Merchant         Richmond1    51USA011          M840200101000000000016491000161234567179299851910100422109103011000578187589104005123459105014201710041712289106001A910700300291080020291090020291100366e0b82bb-fdd1-49bd-8408-46e6b55007f1014510002329467890120100  0005400214000000000001231234000108000000002";
-
+        let tiso_msg_responsebyte_array = "0110F22464810A708836000000000000000001612345672297417250030000000000001311204212825117816220258128400105900641931071281500774300555555555555888Test Merchant         Richmond1    51USA011          M8402001010000000000014510002329467890120100  0005400214000000000001231234000108000000002";
         let total_size = iso_msg.to_byte_array(&mut out_buffer);
         assert_eq!(tiso_msg_responsebyte_array.len(), total_size);
         assert_eq!(
@@ -867,76 +856,8 @@ IsoField::new("Message Authentication Code Field",FieldCharType::Iso8583_b  ,  8
         assert_eq!(payload.len(), total_size);
         assert_eq!(str::from_utf8(&buffer[0..total_size]).unwrap(), payload);
     }
-    #[test]
-    fn to_yaml_str() {
-        let specs = AuthSpecs::new();
-        let yaml_str = YamlSpec::to_string(specs.get_handle());
-        trace!("YAML:\n{}", yaml_str);
-    }
-
-    #[test]
-    fn network_req_test() {
-        let req = "0800822000000000000004000000000000001113192531105218001";
-        let res = "081082200000020000000400000000000000111319253110521800001";
-        let handle = AuthSpecs::new();
-        let _iso_msg = IsoMsg::new(&handle, req.as_bytes());
-        let mut buffer = [0u8; 1024];
-
-        let res = _iso_msg.get_field(7, &mut buffer); //timestamp, len 10
-        assert_eq!(res.is_ok(), true);
-        assert_eq!(
-            "1113192531",
-            str::from_utf8(&buffer[0..res.unwrap()]).unwrap()
-        );
 
 
-        let res1 = _iso_msg.get_field(11, &mut buffer); //trace audit, len 6
-        assert_eq!(res1.is_ok(), true);
-        assert_eq!("105218", str::from_utf8(&buffer[0..res1.unwrap()]).unwrap());
-
-
-        let res2 = _iso_msg.get_field(70, &mut buffer); //network action, logon/logoff, len 3
-        assert_eq!(res2.is_ok(), true);
-        assert_eq!("001", str::from_utf8(&buffer[0..res2.unwrap()]).unwrap());
-
-        let mut total_size = _iso_msg.to_byte_array(&mut buffer);
-        assert_eq!(req.len(), total_size);
-        assert_eq!(str::from_utf8(&buffer[0..total_size]).unwrap(), req);
-    }
-
-    #[test]
-    fn network_res_test() {
-        //let req = "0800822000000000000004000000000000001113192531105218001";
-        let req = "081082200000020000000400000000000000111319253110521800001";
-        let handle = AuthSpecs::new();
-        let _iso_msg = IsoMsg::new(&handle, req.as_bytes());
-        let mut buffer = [0u8; 1024];
-
-        let res = _iso_msg.get_field(7, &mut buffer); //timestamp, len 10
-        assert_eq!(res.is_ok(), true);
-        assert_eq!(
-            "1113192531",
-            str::from_utf8(&buffer[0..res.unwrap()]).unwrap()
-        );
-
-
-        let res1 = _iso_msg.get_field(11, &mut buffer); //trace audit, len 6
-        assert_eq!(res1.is_ok(), true);
-        assert_eq!("105218", str::from_utf8(&buffer[0..res1.unwrap()]).unwrap());
-
-        let res1 = _iso_msg.get_field(39, &mut buffer); //response code, len 2
-        assert_eq!(res1.is_ok(), true);
-        assert_eq!("00", str::from_utf8(&buffer[0..res1.unwrap()]).unwrap());
-
-
-        let res2 = _iso_msg.get_field(70, &mut buffer); //network action, logon/logoff, len 3
-        assert_eq!(res2.is_ok(), true);
-        assert_eq!("001", str::from_utf8(&buffer[0..res2.unwrap()]).unwrap());
-
-        let mut total_size = _iso_msg.to_byte_array(&mut buffer);
-        assert_eq!(req.len(), total_size);
-        assert_eq!(str::from_utf8(&buffer[0..total_size]).unwrap(), req);
-    }
 
 
 

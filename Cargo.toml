@@ -1,6 +1,6 @@
 [package]
 name = "iso8583"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Rohit Joshi <rohit.joshi@rohit.c.joshi.com>"]
 
 
@@ -10,7 +10,7 @@ homepage = "https://github.com/rohitjoshi/iso8583"
 repository = "https://github.com/rohitjoshi/iso8583"
 documentation = "https://github.com/rohitjoshi/iso8583/blob/master/README.md"
 keywords = ["iso8583", "encoding", "decoding", "protocol"]
-categories = ["iso8583"]
+categories = ["encoding"]
 readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 
