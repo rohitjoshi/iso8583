@@ -12,6 +12,7 @@ use iso_msg::IsoSpecs;
 use serde_yaml;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 /// Auth spec defines the format of Iso8583 message
 pub struct YamlSpec {
@@ -78,18 +79,18 @@ impl YamlSpec {
                 if a == "Label" {
                     label = b.to_string();
                 } else if a == "ContentType" {
-                    let c = FieldCharType::from_str(b);
-                    if c.is_none() {
-                        return Err(format!("Invalid ContentType {} for Index {}", b, index));
-                    } else {
-                        char_type = c.unwrap();
+                    match FieldCharType::from_str(b) {
+                        Err(_) => {
+                            return Err(format!("Invalid ContentType {} for Index {}", b, index))
+                        }
+                        Ok(c) => char_type = c,
                     }
                 } else if a == "LengthType" || a == "LenType" {
-                    let lt = FieldSizeType::from_str(b);
-                    if lt.is_none() {
-                        return Err(format!("Invalid LengthType {} for Index {}", b, index));
-                    } else {
-                        length_type = lt.unwrap();
+                    match FieldSizeType::from_str(b) {
+                        Err(_) => {
+                            return Err(format!("Invalid LengthType {} for Index {}", b, index))
+                        }
+                        Ok(lt) => length_type = lt,
                     }
                 } else if a == "Length" || a == "MaxLen" {
                     let l = b.parse();
