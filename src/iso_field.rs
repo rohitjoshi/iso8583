@@ -6,7 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum FieldCharType {
     Iso8583_n,
@@ -43,20 +42,19 @@ impl FieldCharType {
     }
 
     pub fn as_str(&self) -> &'static str {
-        match self {
-            &FieldCharType::Iso8583_n => "n",
-            &FieldCharType::Iso8583_ns => "ns",
-            &FieldCharType::Iso8583_xn => "xs",
-            &FieldCharType::ISO8583_a => "a",
-            &FieldCharType::Iso8583_an => "an",
-            &FieldCharType::Iso8583_ans => "ans",
-            &FieldCharType::Iso8583_ansb => "ansb",
-            &FieldCharType::Iso8583_anp => "anp",
-            &FieldCharType::Iso8583_b => "b",
-            &FieldCharType::ISO8583_z => "z",
-            &FieldCharType::Iso8583_bmp => "bmp",
-            &FieldCharType::Iso8583_bmps => "bmps",
-
+        match *self {
+            FieldCharType::Iso8583_n => "n",
+            FieldCharType::Iso8583_ns => "ns",
+            FieldCharType::Iso8583_xn => "xs",
+            FieldCharType::ISO8583_a => "a",
+            FieldCharType::Iso8583_an => "an",
+            FieldCharType::Iso8583_ans => "ans",
+            FieldCharType::Iso8583_ansb => "ansb",
+            FieldCharType::Iso8583_anp => "anp",
+            FieldCharType::Iso8583_b => "b",
+            FieldCharType::ISO8583_z => "z",
+            FieldCharType::Iso8583_bmp => "bmp",
+            FieldCharType::Iso8583_bmps => "bmps",
         }
     }
 }
@@ -84,12 +82,12 @@ impl FieldSizeType {
     }
 
     pub fn as_str(&self) -> &'static str {
-        match self {
-            &FieldSizeType::Fixed => "fixed",
-            &FieldSizeType::LlVar => "llvar",
-            &FieldSizeType::LllVar => "lllvar",
-            &FieldSizeType::LlllVar => "llllvar",
-            &FieldSizeType::BitMap => "bitmap",
+        match *self {
+            FieldSizeType::Fixed => "fixed",
+            FieldSizeType::LlVar => "llvar",
+            FieldSizeType::LllVar => "lllvar",
+            FieldSizeType::LlllVar => "llllvar",
+            FieldSizeType::BitMap => "bitmap",
         }
     }
 }
@@ -113,9 +111,9 @@ impl IsoField {
     ) -> IsoField {
         IsoField {
             label: String::from(label),
-            char_type: char_type,
-            length: length,
-            size_type: size_type,
+            char_type,
+            length,
+            size_type,
         }
     }
 }

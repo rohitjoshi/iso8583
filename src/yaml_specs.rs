@@ -5,16 +5,13 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-
-use yaml_rust::yaml;
-use serde_yaml;
 use iso_field::FieldCharType;
-use iso_field::FieldPayload;
-use iso_field::IsoField;
 use iso_field::FieldSizeType;
-use std::collections::HashMap;
-use std::collections::BTreeMap;
+use iso_field::IsoField;
 use iso_msg::IsoSpecs;
+use serde_yaml;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 /// Auth spec defines the format of Iso8583 message
 pub struct YamlSpec {
@@ -28,43 +25,46 @@ impl IsoSpecs for YamlSpec {
 }
 
 impl YamlSpec {
-    pub fn new(yaml_string: &String) -> Result<YamlSpec, String> {
+    pub fn new(yaml_string: &str) -> Result<YamlSpec, String> {
         let handle = try!(YamlSpec::from_string(yaml_string));
-        Ok(
-            YamlSpec { 
-                handle: handle 
-            }
-        )
+        Ok(YamlSpec { handle })
     }
-/*
- pub label: String,
-    pub char_type: FieldCharType,
-    pub size_type: FieldSizeType,
-    pub length: usize,
-    */
-     fn to_string(handle: &Vec<IsoField>) -> String {
-        let mut btmap = BTreeMap::<usize, HashMap<String,String>>::new();
-        for index in  0..handle.len() {
-            let mut map = HashMap::<String,String>::with_capacity(4);
-            let iso_field = &handle[index];
+    /*
+    pub label: String,
+       pub char_type: FieldCharType,
+       pub size_type: FieldSizeType,
+       pub length: usize,
+       */
+    pub fn to_string(handle: &[IsoField]) -> String {
+        let mut btmap = BTreeMap::<usize, HashMap<String, String>>::new();
+        for (index, iso_field) in handle.iter().enumerate() {
+            let mut map = HashMap::<String, String>::with_capacity(4);
             map.insert(String::from("Label"), iso_field.label.clone());
-            map.insert(String::from("ContentType"), String::from(iso_field.char_type.as_str()));
-            map.insert(String::from("LengthType"), String::from(iso_field.size_type.as_str()));
+            map.insert(
+                String::from("ContentType"),
+                String::from(iso_field.char_type.as_str()),
+            );
+            map.insert(
+                String::from("LengthType"),
+                String::from(iso_field.size_type.as_str()),
+            );
             map.insert(String::from("Length"), iso_field.length.to_string());
             btmap.insert(index, map);
         }
-        return serde_yaml::to_string(&btmap).unwrap();
+        serde_yaml::to_string(&btmap).unwrap()
     }
-    
-    fn from_string(yaml_string: &str) -> Result<Vec<IsoField>, String> {
-        let fields: BTreeMap<usize, HashMap<String,String>> = match serde_yaml::from_str(&yaml_string) {
-            Err(e) => {
-                return Err(format!(
-                                "Failed to parse yaml file. Err: {} ",e.to_string())
-                );
-            },
-            Ok(bt) => { bt}
-        };
+
+    pub fn from_string(yaml_string: &str) -> Result<Vec<IsoField>, String> {
+        let fields: BTreeMap<usize, HashMap<String, String>> =
+            match serde_yaml::from_str(&yaml_string) {
+                Err(e) => {
+                    return Err(format!(
+                        "Failed to parse yaml file. Err: {} ",
+                        e.to_string()
+                    ));
+                }
+                Ok(bt) => bt,
+            };
         trace!("fields.length(): {}", fields.len());
         let mut handle = Vec::<IsoField>::with_capacity(fields.len());
 
@@ -76,76 +76,54 @@ impl YamlSpec {
             for (a, b) in val.iter() {
                 trace!("index:{}, a:{}, b:{}", index, a, b);
                 if a == "Label" {
-                     label = b.to_string();
-                }else if a == "ContentType" {
+                    label = b.to_string();
+                } else if a == "ContentType" {
                     let c = FieldCharType::from_str(b);
                     if c.is_none() {
-                        return Err(format!(
-                                "Invalid ContentType {} for Index {}",
-                                b,
-                                index
-                                ));
-                           
-                    }else {
+                        return Err(format!("Invalid ContentType {} for Index {}", b, index));
+                    } else {
                         char_type = c.unwrap();
                     }
-                      
-                }else if a == "LengthType" || a == "LenType" {
-
+                } else if a == "LengthType" || a == "LenType" {
                     let lt = FieldSizeType::from_str(b);
                     if lt.is_none() {
-                        return Err(format!(
-                            "Invalid LengthType {} for Index {}",
-                            b,
-                            index
-                        ));
-                        
-                    }else {
+                        return Err(format!("Invalid LengthType {} for Index {}", b, index));
+                    } else {
                         length_type = lt.unwrap();
                     }
-                    
-                }else if a == "Length" || a == "MaxLen" {
-                    let l  = b.parse();
+                } else if a == "Length" || a == "MaxLen" {
+                    let l = b.parse();
                     if l.is_err() {
-                        return Err(format!(
-                            "Invalid Length/MaxLen {} for Index {}",
-                            b,
-                            index
-                        ));
-                        
-                    }else {
-                        field_length : usize = l.unwrap();
+                        return Err(format!("Invalid Length/MaxLen {} for Index {}", b, index));
+                    } else {
+                        field_length: usize = l.unwrap();
                     }
                 }
-               
             }
-             let iso_field = IsoField::new(label.as_str(), char_type, field_length as usize, length_type);
-              handle.insert(*index, iso_field);
+            let iso_field = IsoField::new(
+                label.as_str(),
+                char_type,
+                field_length as usize,
+                length_type,
+            );
+            handle.insert(*index, iso_field);
         }
         Ok(handle)
     }
 }
-    
 
 #[cfg(test)]
 //#[cfg(all(feature = "unstable", test))]
 mod tests {
     use super::*;
-    use std::{str, u32};
-    use typenum::U128;
-
-    use iso_field::FieldCharType;
-    use iso_field::FieldPayload;
-    use iso_field::FieldSizeType;
-    use iso_field::IsoField;
-    use yaml_specs::IsoSpecs;
-    use std::collections::HashMap;
     use std::collections::BTreeMap;
+    use std::collections::HashMap;
+    use std::str;
+    use yaml_specs::IsoSpecs;
 
-   #[test]
-   fn test_seard_yml_spec() {
-       let s = 
-       "
+    #[test]
+    fn test_seard_yml_spec() {
+        let s = "
        0:
             ContentType: n
             LengthType: fixed
@@ -163,19 +141,18 @@ mod tests {
             LengthType: llvar
             Length: 4
        ";
-        
-        let fields: BTreeMap::<usize, HashMap::<String,String>> = serde_yaml::from_str(&s).unwrap();
+
+        let fields: BTreeMap<usize, HashMap<String, String>> = serde_yaml::from_str(&s).unwrap();
         for (key, val) in fields.iter() {
             for (a, b) in val.iter() {
-                trace!("key:{}, a:{}, b:{}", key, a,b);
+                trace!("key:{}, a:{}, b:{}", key, a, b);
             }
         }
-        assert_eq!(fields.len(),4)
-   }
-   #[test]
-   fn test_yml_spec() {
-       let s = 
-       "
+        assert_eq!(fields.len(), 4)
+    }
+    #[test]
+    fn test_yml_spec() {
+        let s = "
        0:
             ContentType: n
             Label : MTI
@@ -187,43 +164,38 @@ mod tests {
             LengthType: LlVar
             Length: 4
        ";
-        
-        
+
         let fields = YamlSpec::from_string(s);
         assert_eq!(fields.is_ok(), true);
-        assert_eq!(fields.unwrap().len(),2 );
-       
+        assert_eq!(fields.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn yaml_spec_file_test() {
+        use iso_msg::IsoMsg;
+        use std::fs::File;
+        use std::io::prelude::*;
+
+        let file_res = File::open("spec1993.yml");
+        assert_eq!(file_res.is_ok(), true);
+        let mut file = file_res.unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        let specs_res = YamlSpec::new(&contents);
+        assert_eq!(specs_res.is_ok(), true);
+        let handle = specs_res.unwrap();
+        assert_eq!(handle.get_handle().len(), 129);
+
+        let payload = "0100F2246481087088360000000000000004016123456717929985100300000000000013112042128251178162210581284001059006419310712815007743555555555555888Test Merchant         Richmond1    51USA011          N8402001010000000000014510002329467890120100  00054002140000000000012312340001080000000020120040001N 989";
+
+        let iso_msg = IsoMsg::new(&handle, payload.as_bytes());
+        let mut buffer = [0u8; 1024];
+        {
+            let res = iso_msg.get_field(0, &mut buffer);
+            assert_eq!(res.unwrap(), 4);
+            trace!("mti: {}", str::from_utf8(&buffer[..4]).unwrap());
+            assert_eq!(&buffer[..4], "0100".as_bytes());
         }
+    }
 
-        #[test]
-        fn yaml_spec_file_test() {
-            use std::fs::File;
-            use std::io::prelude::*;
-            use iso_msg::IsoMsg;
-
-            let file_res = File::open("spec1993.yml");
-            assert_eq!(file_res.is_ok(), true);
-            let mut file = file_res.unwrap();
-            let mut contents = String::new();
-            file.read_to_string(&mut contents);
-            let specs_res = YamlSpec::new(&contents);
-            assert_eq!(specs_res.is_ok(), true);
-            let handle = specs_res.unwrap();
-            assert_eq!(handle.get_handle().len(), 129);
-
-            let payload = "0100F2246481087088360000000000000004016123456717929985100300000000000013112042128251178162210581284001059006419310712815007743555555555555888Test Merchant         Richmond1    51USA011          N8402001010000000000014510002329467890120100  00054002140000000000012312340001080000000020120040001N 989";
-            
-            let mut iso_msg = IsoMsg::new(&handle, payload.as_bytes());
-            let mut buffer = [0u8; 1024];
-            {
-                let res = iso_msg.get_field(0, &mut buffer);
-                assert_eq!(res.unwrap(), 4);
-                trace!("mti: {}", str::from_utf8(&buffer[..4]).unwrap());
-                assert_eq!(&buffer[..4], "0100".as_bytes());
-            }
-        }
-
-      
-
-  
 }
