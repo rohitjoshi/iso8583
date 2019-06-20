@@ -1,15 +1,15 @@
+---
 language: rust
 rust:
   - stable
   - nightly
-env:
 
 matrix:
   allow_failures:
     - rust: nightly
 env:
   global:
-  - RUSTFLAGS="-C link-dead-code"
+    - RUSTFLAGS="-C link-dead-code"
 
 sudo: true
 before_install:
@@ -22,7 +22,7 @@ addons:
       - libdw-dev
       - cmake
       - gcc
-      - binutils-dev  
+      - binutils-dev
 
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
@@ -38,8 +38,7 @@ after_success: |
   for file in target/debug/iso8583-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
   bash <(curl -s https://codecov.io/bash) &&
   echo "Uploaded code coverage"
-  
+
 script:
-  cargo build --verbose;
-  cargo test --verbose;
-  cargo clean;
+  - cargo build --verbose
+  - cargo test --verbose
