@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum FieldCharType {
@@ -24,39 +25,42 @@ pub enum FieldCharType {
 }
 
 impl FieldCharType {
-    pub fn from_str(s: &str) -> Option<FieldCharType> {
-        match s {
-            "n" => Some(FieldCharType::Iso8583_n),
-            "ns" => Some(FieldCharType::Iso8583_ns),
-            "xs" => Some(FieldCharType::Iso8583_xn),
-            "a" => Some(FieldCharType::ISO8583_a),
-            "an" => Some(FieldCharType::Iso8583_an),
-            "ans" => Some(FieldCharType::Iso8583_ans),
-            "ansb" => Some(FieldCharType::Iso8583_ansb),
-            "anp" => Some(FieldCharType::Iso8583_anp),
-            "b" => Some(FieldCharType::Iso8583_b),
-            "z" => Some(FieldCharType::ISO8583_z),
-            "bmp" => Some(FieldCharType::Iso8583_bmp),
-            "bmps" => Some(FieldCharType::Iso8583_bmps),
-            _ => None,
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            FieldCharType::Iso8583_n => "n",
+            FieldCharType::Iso8583_ns => "ns",
+            FieldCharType::Iso8583_xn => "xs",
+            FieldCharType::ISO8583_a => "a",
+            FieldCharType::Iso8583_an => "an",
+            FieldCharType::Iso8583_ans => "ans",
+            FieldCharType::Iso8583_ansb => "ansb",
+            FieldCharType::Iso8583_anp => "anp",
+            FieldCharType::Iso8583_b => "b",
+            FieldCharType::ISO8583_z => "z",
+            FieldCharType::Iso8583_bmp => "bmp",
+            FieldCharType::Iso8583_bmps => "bmps",
         }
     }
+}
 
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            &FieldCharType::Iso8583_n => "n",
-            &FieldCharType::Iso8583_ns => "ns",
-            &FieldCharType::Iso8583_xn => "xs",
-            &FieldCharType::ISO8583_a => "a",
-            &FieldCharType::Iso8583_an => "an",
-            &FieldCharType::Iso8583_ans => "ans",
-            &FieldCharType::Iso8583_ansb => "ansb",
-            &FieldCharType::Iso8583_anp => "anp",
-            &FieldCharType::Iso8583_b => "b",
-            &FieldCharType::ISO8583_z => "z",
-            &FieldCharType::Iso8583_bmp => "bmp",
-            &FieldCharType::Iso8583_bmps => "bmps",
+impl FromStr for FieldCharType {
+    type Err = ();
 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "n" => Ok(FieldCharType::Iso8583_n),
+            "ns" => Ok(FieldCharType::Iso8583_ns),
+            "xs" => Ok(FieldCharType::Iso8583_xn),
+            "a" => Ok(FieldCharType::ISO8583_a),
+            "an" => Ok(FieldCharType::Iso8583_an),
+            "ans" => Ok(FieldCharType::Iso8583_ans),
+            "ansb" => Ok(FieldCharType::Iso8583_ansb),
+            "anp" => Ok(FieldCharType::Iso8583_anp),
+            "b" => Ok(FieldCharType::Iso8583_b),
+            "z" => Ok(FieldCharType::ISO8583_z),
+            "bmp" => Ok(FieldCharType::Iso8583_bmp),
+            "bmps" => Ok(FieldCharType::Iso8583_bmps),
+            _ => Err(()),
         }
     }
 }
@@ -71,25 +75,29 @@ pub enum FieldSizeType {
 }
 
 impl FieldSizeType {
-    pub fn from_str(s: &str) -> Option<FieldSizeType> {
-        let s_lower = s.to_lowercase();
-        match s_lower.as_str() {
-            "fixed" => Some(FieldSizeType::Fixed),
-            "llvar" => Some(FieldSizeType::LlVar),
-            "lllvar" => Some(FieldSizeType::LllVar),
-            "llllvar" => Some(FieldSizeType::LlllVar),
-            "bitmap" => Some(FieldSizeType::BitMap),
-            _ => None,
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            FieldSizeType::Fixed => "fixed",
+            FieldSizeType::LlVar => "llvar",
+            FieldSizeType::LllVar => "lllvar",
+            FieldSizeType::LlllVar => "llllvar",
+            FieldSizeType::BitMap => "bitmap",
         }
     }
+}
 
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            &FieldSizeType::Fixed => "fixed",
-            &FieldSizeType::LlVar => "llvar",
-            &FieldSizeType::LllVar => "lllvar",
-            &FieldSizeType::LlllVar => "llllvar",
-            &FieldSizeType::BitMap => "bitmap",
+impl FromStr for FieldSizeType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s_lower = s.to_lowercase();
+        match s_lower.as_str() {
+            "fixed" => Ok(FieldSizeType::Fixed),
+            "llvar" => Ok(FieldSizeType::LlVar),
+            "lllvar" => Ok(FieldSizeType::LllVar),
+            "llllvar" => Ok(FieldSizeType::LlllVar),
+            "bitmap" => Ok(FieldSizeType::BitMap),
+            _ => Err(()),
         }
     }
 }
@@ -113,9 +121,9 @@ impl IsoField {
     ) -> IsoField {
         IsoField {
             label: String::from(label),
-            char_type: char_type,
-            length: length,
-            size_type: size_type,
+            char_type,
+            length,
+            size_type,
         }
     }
 }
