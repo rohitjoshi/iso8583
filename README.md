@@ -6,7 +6,7 @@ Iso8583 Message Parser (Serialize/Deserialize)
 
 ## Initial ISO-8583 Message specs from YAML File
 
-```
+```rust
 use std::fs::File;
 use std::io::prelude::*;
 use iso_msg::IsoMsg;
